@@ -1,10 +1,22 @@
+#if os(macOS) || os(iOS)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#elseif os(Windows)
+import ucrt
+#else
+#error("Unknown platform")
+#endif
 
 let yes = CommandLine.argc > 1 ? CommandLine.arguments[1] : "y"
-let cstring = yes.utf8CString
+let line = yes + "\n"
 
-while true {
-    write(STDOUT_FILENO, yes, cstring.count)
-    write(STDOUT_FILENO, [0x0a], 1)
+line.withCString {
+    let len = strlen($0)
+    while true {
+        write(STDOUT_FILENO, $0, len)
+    }
 }
 
