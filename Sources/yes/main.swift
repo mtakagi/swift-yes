@@ -21,7 +21,18 @@ line.withCString {
     let len = line.utf8.count
     #endif
     while true {
-        write(STDOUT_FILENO, $0, len)
+        var writtenBytes = 0
+        while writtenBytes < len {
+            let result = write(STDOUT_FILENO, $0 + writtenBytes, len - writtenBytes)
+            if result < 0 {
+                if errno == EINTR {
+                     continue 
+                }
+                perror("write")
+                exit(1)
+            }
+            writtenBytes += result
+        }
     }
 }
 
