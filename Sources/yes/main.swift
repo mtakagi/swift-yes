@@ -14,7 +14,7 @@ let yes = CommandLine.argc > 1 ? CommandLine.arguments[1] : "y"
 let line = yes + "\n"
 
 line.withCString {
-    let len = strlen($0)
+    let len = line.utf8.count
     while true {
         write(STDOUT_FILENO, $0, len)
     }
