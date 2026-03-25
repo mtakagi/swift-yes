@@ -22,7 +22,7 @@ line.withCString {
     #endif
     while true {
         var writtenBytes = 0
-        while writtenBytes < len {
+        while writtenBytes < len { ptr in
             #if os(Windows)
             let result = write(STDOUT_FILENO, ptr + writtenBytes, UInt32(Int(len) - writtenBytes))
             if result < 0 {
