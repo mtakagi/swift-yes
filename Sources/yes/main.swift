@@ -23,14 +23,25 @@ line.withCString {
     while true {
         var writtenBytes = 0
         while writtenBytes < len {
-            let result = write(STDOUT_FILENO, $0 + writtenBytes, len - writtenBytes)
+            #if os(Windows)
+            let result = write(STDOUT_FILENO, ptr + writtenBytes, UInt32(Int(len) - writtenBytes))
             if result < 0 {
-                if errno == EINTR {
-                     continue 
+                if _errno().pointee == EINTR {
+                    continue
                 }
                 perror("write")
                 exit(1)
             }
+            #else
+            let result = write(STDOUT_FILENO, ptr + writtenBytes, len - writtenBytes)
+            if result < 0 {
+                if errno == EINTR {
+                    continue
+                }
+                perror("write")
+                exit(1)
+            }
+            #endif
             writtenBytes += result
         }
     }
