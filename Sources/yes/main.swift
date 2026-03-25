@@ -42,7 +42,7 @@ line.withCString { ptr in
                 exit(1)
             }
             #endif
-            writtenBytes += result
+            writtenBytes += Int(result)
         }
     }
 }
