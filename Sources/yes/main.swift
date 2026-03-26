@@ -14,36 +14,29 @@ let STDOUT_FILENO: Int32 = 1
 let yes = CommandLine.argc > 1 ? CommandLine.arguments[1] : "y"
 let line = yes + "\n"
 
-line.withCString { ptr in
-    #if os(Windows)
-    let len = UInt32(line.utf8.count)
-    #else
-    let len = line.utf8.count
-    #endif
+let bufferSize = 64 * 1024
+var buffer = [UInt8](repeating: 0, count: bufferSize)
+
+let bytes = Array(line.utf8)
+var size = bytes.count
+
+buffer[0..<size] = bytes[0..<size]
+
+while size < bufferSize / 2 {
+    buffer[size..<size*2] = buffer[0..<size]
+    size *= 2
+}
+
+buffer.withUnsafeBytes { ptr in
+    let base = ptr.baseAddress!
     while true {
-        var writtenBytes = 0
-        while writtenBytes < len {
-            #if os(Windows)
-            let result = write(STDOUT_FILENO, ptr + writtenBytes, UInt32(Int(len) - writtenBytes))
-            if result < 0 {
-                if _errno().pointee == EINTR {
-                    continue
-                }
-                perror("write")
-                exit(1)
-            }
-            #else
-            let result = write(STDOUT_FILENO, ptr + writtenBytes, len - writtenBytes)
-            if result < 0 {
-                if errno == EINTR {
-                    continue
-                }
-                perror("write")
-                exit(1)
-            }
-            #endif
-            writtenBytes += Int(result)
+        #if os(Windows)
+        let written = write(STDOUT_FILENO, base, UInt32(size))
+        #else
+        let written = write(STDOUT_FILENO, base, size)
+        #endif
+        if written <= 0 {
+            break
         }
     }
 }
-
