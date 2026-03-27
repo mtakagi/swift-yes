@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+" # 1.0.0 などのタグがプッシュされた時に実行
+  workflow_dispatch: # 手動実行用
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: macos-arm64
+            suffix: ""
+          - os: ubuntu-latest
+            target: linux-x64
+            suffix: ""
+          - os: windows-latest
+            target: windows-x64
+            suffix: ".exe"
+          - os: ubuntu-latest
+            target: linux-musl-x64
+            suffix: ""
+            use_musl: true
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Swift Setup (Non-Windows)
+    - name: Setup Swift (macOS / Linux)
+      if: runner.os != 'Windows'
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '6.2'
+
+    # Swift Setup (Windows)
+    - name: Setup Swift (Windows)
+      if: runner.os == 'Windows'
+      uses: sushichop/gha-swift-env@v1
+      with:
+        swift-version: '6.2'
+
+    # musl 用の特別なセットアップ
+    - name: Install Static Linux SDK for musl
+      if: ${{ matrix.use_musl }}
+      run: swift sdk install https://download.swift.org/swift-6.2-release/static-sdk/swift-6.2-RELEASE/swift-6.2-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum d2225840e592389ca517bbf71652f7003dbf45ac35d1e57d98b9250368769378
+
+    # ビルド実行
+    - name: Build Library
+      run: |
+        if [ "${{ matrix.use_musl }}" = "true" ]; then
+          swift build -c release --target yes --swift-sdk x86_64-swift-linux-musl
+          cp .build/x86_64-swift-linux-musl/release/yes ./yes-${{ matrix.target }}
+        elif [ "${{ runner.os }}" = "Windows" ]; then
+          swift build -c release --target yes
+          copy .build\release\yes.exe .\yes-${{ matrix.target }}.exe
+        else
+          swift build -c release --target yes
+          cp .build/release/yes ./yes-${{ matrix.target }}
+        fi
+      shell: bash
+
+    # 成果物の保存
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: yes-${{ matrix.target }}
+        path: yes-${{ matrix.target }}${{ matrix.suffix }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'nightly' }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Nightly Build' }}
+          prerelease: ${{ github.ref_type != 'tag' }}
+          files: ./artifacts/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
