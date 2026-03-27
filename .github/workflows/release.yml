@@ -54,15 +54,25 @@ jobs:
     # ビルド実行
     - name: Build Library
       run: |
+        # リリースモードでビルド
+        swift build -c release --target yes
+        
+        # バイナリが生成されたディレクトリを取得
+        BIN_PATH=$(swift build -c release --show-bin-path)
+        
         if [ "${{ matrix.use_musl }}" = "true" ]; then
+          # musl の場合は SDK 指定が必要なため再取得
+          # 注: SDKビルド時はパスが変わる可能性があるため、明示的に指定
           swift build -c release --target yes --swift-sdk x86_64-swift-linux-musl
-          cp .build/x86_64-swift-linux-musl/release/yes ./yes-${{ matrix.target }}
+          MUSL_BIN_PATH=$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)
+          cp "$MUSL_BIN_PATH/yes" ./yes-${{ matrix.target }}
         elif [ "${{ runner.os }}" = "Windows" ]; then
-          swift build -c release --target yes
-          copy .build\release\yes.exe .\yes-${{ matrix.target }}.exe
+          # Windows の場合は show-bin-path の結果を Windows 形式で扱う
+          BIN_PATH_WIN=$(swift build -c release --show-bin-path)
+          copy "$BIN_PATH_WIN\yes.exe" ".\yes-${{ matrix.target }}.exe"
         else
-          swift build -c release --target yes
-          cp .build/release/yes ./yes-${{ matrix.target }}
+          # macOS / Standard Linux
+          cp "$BIN_PATH/yes" ./yes-${{ matrix.target }}
         fi
       shell: bash
 
