@@ -54,31 +54,34 @@ jobs:
     # ビルド実行
     - name: Build Library
       run: |
+        set -e # エラーが発生したら即座に停止
+        
         if [ "${{ matrix.use_musl }}" = "true" ]; then
           swift build -c release --target yes --swift-sdk x86_64-swift-linux-musl
-          # musl環境下で生成された実行ファイルを探す
-          BINARY_PATH=$(find .build -type f -name "yes" | grep "release" | grep "musl" | head -n 1)
-        elif [ "${{ runner.os }}" = "Windows" ]; then
-          swift build -c release --target yes
-          # Windows の場合は .exe を探す (PowerShell/Bash混合環境を考慮して shell: bash を維持)
-          BINARY_PATH=$(find .build -type f -name "yes.exe" | grep "release" | head -n 1)
         else
           swift build -c release --target yes
-          # macOS / Linux で release ディレクトリ内の実行ファイルを探す
-          BINARY_PATH=$(find .build -type f -perm +111 -name "yes" | grep "release" | head -n 1)
-          # perm +111 が効かない環境（古いfind）の場合は以下を試行
-          if [ -z "$BINARY_PATH" ]; then
-            BINARY_PATH=$(find .build -type f -name "yes" | grep "release" | head -n 1)
-          fi
         fi
 
-        echo "Found binary at: $BINARY_PATH"
-        
+        echo "--- Directory Structure for Debug ---"
+        find .build -maxdepth 4 -name "yes*"
+        echo "-------------------------------------"
+
+        # バイナリの探索ロジックを簡素化
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          # Windows は .exe を探す
+          BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes.exe" | head -n 1)
+        else
+          # macOS / Linux
+          # perm +111 ではなく、単純に release ディレクトリ内の yes を探す
+          BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes" | grep -v "\.build/artifacts" | head -n 1)
+        fi
+
         if [ -z "$BINARY_PATH" ]; then
-          echo "Error: Binary not found"
+          echo "Error: Binary 'yes' not found in .build/release/ directory."
           exit 1
         fi
 
+        echo "Found binary at: $BINARY_PATH"
         cp "$BINARY_PATH" "./yes-${{ matrix.target }}${{ matrix.suffix }}"
       shell: bash
 
