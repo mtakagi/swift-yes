@@ -11,7 +11,7 @@ let STDOUT_FILENO: Int32 = 1
 #error("Unknown platform")
 #endif
 
-let yes = CommandLine.argc > 1 ? CommandLine.arguments[1] : "y"
+let yes = CommandLine.argc > 1 ? CommandLine.arguments.dropFirst().joined(separator: " ") : "y"
 let line = yes + "\n"
 
 let bufferSize = 64 * 1024
