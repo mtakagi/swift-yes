@@ -1,0 +1,67 @@
+name: Test
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Package.swift'
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Package.swift'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: macos
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: windows
+          - os: ubuntu-latest
+            target: linux-musl
+            use_musl: true
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Swift Setup (macOS / Linux)
+    - name: Setup Swift (macOS / Linux)
+      if: runner.os != 'Windows'
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '6.2'
+
+    # Swift Setup (Windows)
+    - name: Setup Swift (Windows)
+      if: runner.os == 'Windows'
+      uses: sushichop/gha-swift-env@v1
+      with:
+        swift-version: '6.2'
+
+    # musl 用のセットアップ
+    - name: Install Static Linux SDK for musl
+      if: ${{ matrix.use_musl }}
+      run: swift sdk install https://download.swift.org/swift-6.2-release/static-sdk/swift-6.2-RELEASE/swift-6.2-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum d2225840e592389ca517bbf71652f7003dbf45ac35d1e57d98b9250368769378
+
+    # テストの実行
+    - name: Run Tests
+      run: |
+        if [ "${{ matrix.use_musl }}" = "true" ]; then
+          # musl 環境でのテスト（ビルドのみ、またはエミュレータが必要な場合があるが、まずはビルドと実行を試行）
+          swift test --swift-sdk x86_64-swift-linux-musl
+        else
+          swift test
+        fi
+      shell: bash
