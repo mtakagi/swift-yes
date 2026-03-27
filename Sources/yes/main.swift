@@ -11,6 +11,10 @@ let STDOUT_FILENO: Int32 = 1
 #error("Unknown platform")
 #endif
 
+#if !os(Windows)
+signal(SIGPIPE, SIG_IGN)
+#endif
+
 let arguments = CommandLine.arguments.dropFirst()
 let yes = arguments.isEmpty ? "y" : arguments.joined(separator: " ")
 let line = yes + "\n"
