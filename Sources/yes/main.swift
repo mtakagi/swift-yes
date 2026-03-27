@@ -43,8 +43,11 @@ buffer.withUnsafeBytes { ptr in
             let result = _write(STDOUT_FILENO, currentPtr, UInt32(bytesToWrite))
             if result < 0 {
                 let err = _errno().pointee
-                if err == 4 /* EINTR */ { continue }
-                exit(0) 
+                if err == EINTR { continue }
+                if err == EPIPE { exit(0) }
+                
+                perror("write")
+                exit(1)
             }
             #else
             let result = write(STDOUT_FILENO, currentPtr, bytesToWrite)
