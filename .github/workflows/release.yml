@@ -57,23 +57,24 @@ jobs:
         set -e
         if [ "${{ matrix.use_musl }}" = "true" ]; then
           swift build -c release --product yes --swift-sdk x86_64-swift-linux-musl
+          BIN_DIR=$(swift build -c release --product yes --swift-sdk x86_64-swift-linux-musl --show-bin-path)
         else
           swift build -c release --product yes
+          BIN_DIR=$(swift build -c release --product yes --show-bin-path)
         fi
         
-        # 探索ロジックの強化
+        echo "Binary directory: $BIN_DIR"
+
         if [ "${{ runner.os }}" = "Windows" ]; then
-          BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes.exe" | grep -v ".build/artifacts" | head -n 1)
+          BINARY_PATH="$BIN_DIR/yes.exe"
         else
-          # 1. 'release' ディレクトリ内であること
-          # 2. 中間生成物フォルダ (*.build/) を除外すること
-          # 3. 実行権限があること (test -x)
-          for f in $(find .build -type f -path "*/release/*" -name "yes" | grep -v ".build/artifacts" | grep -v "\.build/"); do
-            if [ -x "$f" ] && [ "$(file "$f" | grep -v "dSYM")" ]; then
-              BINARY_PATH=$f
-              break
-            fi
-          done
+          # dSYM (ディレクトリ) を避けて、ファイルである 'yes' を特定
+          BINARY_PATH="$BIN_DIR/yes"
+          
+          # もし BIN_DIR 直下にない場合の予備探索
+          if [ ! -f "$BINARY_PATH" ]; then
+            BINARY_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -name "yes" | head -n 1)
+          fi
         fi
 
         echo "Verified Binary: $BINARY_PATH"
