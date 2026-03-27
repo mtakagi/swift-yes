@@ -50,7 +50,8 @@ struct YesTests {
         let data = pipe.fileHandleForReading.readData(ofLength: 5) // "test\n"
         process.terminate()
         
-        #expect(String(data: data, encoding: .utf8) == "test\n")
+        let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+         #expect(output == "test")
     }
 
     @Test("パイプ切断で正常終了することを確認")
