@@ -30,13 +30,31 @@ while size < bufferSize / 2 {
 buffer.withUnsafeBytes { ptr in
     let base = ptr.baseAddress!
     while true {
-        #if os(Windows)
-        let written = write(STDOUT_FILENO, base, UInt32(size))
-        #else
-        let written = write(STDOUT_FILENO, base, size)
-        #endif
-        if written <= 0 {
-            break
+        var writtenBytes = 0
+        while writtenBytes < size {
+            let bytesToWrite = size - writtenBytes
+            let currentPtr = base.advanced(by: writtenBytes)
+            #if os(Windows)
+            let result = write(STDOUT_FILENO, currentPtr, UInt32(bytesToWrite))
+            if result < 0 {
+                if _errno().pointee == EINTR { continue }
+                if _errno().pointee == EPIPE { exit(0) }
+                perror("write")
+                exit(1)
+            }
+            #else
+            let result = write(STDOUT_FILENO, currentPtr, bytesToWrite)
+            if result < 0 {
+                if errno == EINTR { continue }
+                if errno == EPIPE { exit(0) }
+                perror("write")
+                exit(1)
+            }
+            #endif
+            if result == 0 {
+                exit(0)
+            }
+            writtenBytes += Int(result)
         }
     }
 }
