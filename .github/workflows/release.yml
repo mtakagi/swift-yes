@@ -54,26 +54,32 @@ jobs:
     # ビルド実行
     - name: Build Library
       run: |
-        # リリースモードでビルド
-        swift build -c release --target yes
-        
-        # バイナリが生成されたディレクトリを取得
-        BIN_PATH=$(swift build -c release --show-bin-path)
-        
         if [ "${{ matrix.use_musl }}" = "true" ]; then
-          # musl の場合は SDK 指定が必要なため再取得
-          # 注: SDKビルド時はパスが変わる可能性があるため、明示的に指定
           swift build -c release --target yes --swift-sdk x86_64-swift-linux-musl
-          MUSL_BIN_PATH=$(swift build -c release --swift-sdk x86_64-swift-linux-musl --show-bin-path)
-          cp "$MUSL_BIN_PATH/yes" ./yes-${{ matrix.target }}
+          # musl環境下で生成された実行ファイルを探す
+          BINARY_PATH=$(find .build -type f -name "yes" | grep "release" | grep "musl" | head -n 1)
         elif [ "${{ runner.os }}" = "Windows" ]; then
-          # Windows の場合は show-bin-path の結果を Windows 形式で扱う
-          BIN_PATH_WIN=$(swift build -c release --show-bin-path)
-          copy "$BIN_PATH_WIN\yes.exe" ".\yes-${{ matrix.target }}.exe"
+          swift build -c release --target yes
+          # Windows の場合は .exe を探す (PowerShell/Bash混合環境を考慮して shell: bash を維持)
+          BINARY_PATH=$(find .build -type f -name "yes.exe" | grep "release" | head -n 1)
         else
-          # macOS / Standard Linux
-          cp "$BIN_PATH/yes" ./yes-${{ matrix.target }}
+          swift build -c release --target yes
+          # macOS / Linux で release ディレクトリ内の実行ファイルを探す
+          BINARY_PATH=$(find .build -type f -perm +111 -name "yes" | grep "release" | head -n 1)
+          # perm +111 が効かない環境（古いfind）の場合は以下を試行
+          if [ -z "$BINARY_PATH" ]; then
+            BINARY_PATH=$(find .build -type f -name "yes" | grep "release" | head -n 1)
+          fi
         fi
+
+        echo "Found binary at: $BINARY_PATH"
+        
+        if [ -z "$BINARY_PATH" ]; then
+          echo "Error: Binary not found"
+          exit 1
+        fi
+
+        cp "$BINARY_PATH" "./yes-${{ matrix.target }}${{ matrix.suffix }}"
       shell: bash
 
     # 成果物の保存
