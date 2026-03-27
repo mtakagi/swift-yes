@@ -55,15 +55,28 @@ jobs:
     - name: Build Library
       run: |
         set -e
-        # --product yes を指定して実行ファイルの生成を確実にします
         if [ "${{ matrix.use_musl }}" = "true" ]; then
           swift build -c release --product yes --swift-sdk x86_64-swift-linux-musl
         else
           swift build -c release --product yes
         fi
         
-        # バイナリを探してコピー
-        BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes${{ matrix.suffix }}" | grep -v "\.build/.*\.build" | head -n 1)
+        # 探索ロジックの強化
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes.exe" | grep -v ".build/artifacts" | head -n 1)
+        else
+          # 1. 'release' ディレクトリ内であること
+          # 2. 中間生成物フォルダ (*.build/) を除外すること
+          # 3. 実行権限があること (test -x)
+          for f in $(find .build -type f -path "*/release/*" -name "yes" | grep -v ".build/artifacts" | grep -v "\.build/"); do
+            if [ -x "$f" ] && [ "$(file "$f" | grep -v "dSYM")" ]; then
+              BINARY_PATH=$f
+              break
+            fi
+          done
+        fi
+
+        echo "Verified Binary: $BINARY_PATH"
         cp "$BINARY_PATH" "./yes-${{ matrix.target }}${{ matrix.suffix }}"
       shell: bash
 
