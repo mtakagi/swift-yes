@@ -40,12 +40,11 @@ buffer.withUnsafeBytes { ptr in
             let bytesToWrite = size - writtenBytes
             let currentPtr = base.advanced(by: writtenBytes)
             #if os(Windows)
-            let result = write(STDOUT_FILENO, currentPtr, UInt32(bytesToWrite))
+            let result = _write(STDOUT_FILENO, currentPtr, UInt32(bytesToWrite))
             if result < 0 {
-                if _errno().pointee == EINTR { continue }
-                if _errno().pointee == EPIPE { exit(0) }
-                perror("write")
-                exit(1)
+                let err = _errno().pointee
+                if err == 4 /* EINTR */ { continue }
+                exit(0) 
             }
             #else
             let result = write(STDOUT_FILENO, currentPtr, bytesToWrite)
