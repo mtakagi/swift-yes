@@ -59,9 +59,10 @@ jobs:
     - name: Run Tests
       run: |
         if [ "${{ matrix.use_musl }}" = "true" ]; then
-          # musl 環境でのテスト（ビルドのみ、またはエミュレータが必要な場合があるが、まずはビルドと実行を試行）
-          swift test --swift-sdk x86_64-swift-linux-musl
+          # musl は Testing ライブラリ未対応のためビルド確認のみ行う
+          swift build --target yes --swift-sdk x86_64-swift-linux-musl
         else
+          # 通常環境はテストを実行
           swift test
         fi
       shell: bash
