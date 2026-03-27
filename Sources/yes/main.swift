@@ -44,7 +44,9 @@ buffer.withUnsafeBytes { ptr in
             if result < 0 {
                 let err = _errno().pointee
                 if err == EINTR { continue }
-                if err == EPIPE { exit(0) }
+                if err == EPIPE || err == EBADF || err == EINVAL {
+                    exit(0)
+                }
                 
                 perror("write")
                 exit(1)
