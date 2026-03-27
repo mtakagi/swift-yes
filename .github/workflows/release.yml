@@ -54,34 +54,16 @@ jobs:
     # ビルド実行
     - name: Build Library
       run: |
-        set -e # エラーが発生したら即座に停止
-        
+        set -e
+        # --product yes を指定して実行ファイルの生成を確実にします
         if [ "${{ matrix.use_musl }}" = "true" ]; then
-          swift build -c release --target yes --swift-sdk x86_64-swift-linux-musl
+          swift build -c release --product yes --swift-sdk x86_64-swift-linux-musl
         else
-          swift build -c release --target yes
+          swift build -c release --product yes
         fi
-
-        echo "--- Directory Structure for Debug ---"
-        find .build -maxdepth 4 -name "yes*"
-        echo "-------------------------------------"
-
-        # バイナリの探索ロジックを簡素化
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          # Windows は .exe を探す
-          BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes.exe" | head -n 1)
-        else
-          # macOS / Linux
-          # perm +111 ではなく、単純に release ディレクトリ内の yes を探す
-          BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes" | grep -v "\.build/artifacts" | head -n 1)
-        fi
-
-        if [ -z "$BINARY_PATH" ]; then
-          echo "Error: Binary 'yes' not found in .build/release/ directory."
-          exit 1
-        fi
-
-        echo "Found binary at: $BINARY_PATH"
+        
+        # バイナリを探してコピー
+        BINARY_PATH=$(find .build -type f -path "*/release/*" -name "yes${{ matrix.suffix }}" | grep -v "\.build/.*\.build" | head -n 1)
         cp "$BINARY_PATH" "./yes-${{ matrix.target }}${{ matrix.suffix }}"
       shell: bash
 
